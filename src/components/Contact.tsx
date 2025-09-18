@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Mail, Phone, MapPin, Send } from "lucide-react";
+import { useState } from "react";
 
 const Contact = () => {
   const contactInfo = [
@@ -26,10 +27,60 @@ const Contact = () => {
     }
   ];
 
-  const handleSendMessage = () => {
-    const subject = encodeURIComponent("Project Inquiry");
-    const body = encodeURIComponent("Hi Sarmad,\n\nI would like to discuss a project.\n\nThanks,");
-    window.location.href = `mailto:sarmad2422@gmail.com?subject=${subject}&body=${body}`;
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [subject, setSubject] = useState("Project Inquiry");
+  const [message, setMessage] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submitSuccess, setSubmitSuccess] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setSubmitError(null);
+    setSubmitSuccess(null);
+
+    if (!name || !email || !message) {
+      setSubmitError("Please fill in name, email, and message.");
+      return;
+    }
+
+    const accessKey = import.meta.env.VITE_WEB3FORMS_KEY as string | undefined;
+    if (!accessKey) {
+      setSubmitError("Missing Web3Forms access key. Set VITE_WEB3FORMS_KEY in your env.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const formData = new FormData();
+      formData.append("access_key", accessKey);
+      formData.append("name", name);
+      formData.append("email", email);
+      formData.append("subject", subject);
+      formData.append("message", message);
+      // Optional: set your email as recipient if configured in Web3Forms dashboard
+
+      const res = await fetch("https://api.web3forms.com/submit", {
+        method: "POST",
+        body: formData
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        setSubmitSuccess("Thanks! Your message has been sent.");
+        setName("");
+        setEmail("");
+        setSubject("Project Inquiry");
+        setMessage("");
+      } else {
+        setSubmitError(data.message || "Failed to send message. Please try again.");
+      }
+    } catch (err) {
+      setSubmitError("Network error. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -72,47 +123,69 @@ const Contact = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="grid md:grid-cols-2 gap-4">
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Name</label>
+                    <Input 
+                      placeholder="Your Name" 
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      disabled={isSubmitting}
+                      className="border-border focus:border-tech-blue transition-colors"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Email</label>
+                    <Input 
+                      type="email" 
+                      placeholder="your@email.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      disabled={isSubmitting}
+                      className="border-border focus:border-tech-blue transition-colors"
+                    />
+                  </div>
+                </div>
+                
                 <div>
-                  <label className="block text-sm font-medium mb-2">Name</label>
+                  <label className="block text-sm font-medium mb-2">Subject</label>
                   <Input 
-                    placeholder="Your Name" 
+                    placeholder="Project Inquiry"
+                    value={subject}
+                    onChange={(e) => setSubject(e.target.value)}
+                    disabled={isSubmitting}
                     className="border-border focus:border-tech-blue transition-colors"
                   />
                 </div>
+                
                 <div>
-                  <label className="block text-sm font-medium mb-2">Email</label>
-                  <Input 
-                    type="email" 
-                    placeholder="your@email.com"
-                    className="border-border focus:border-tech-blue transition-colors"
+                  <label className="block text-sm font-medium mb-2">Message</label>
+                  <Textarea 
+                    placeholder="Tell me about your project..."
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                    disabled={isSubmitting}
+                    className="min-h-32 border-border focus:border-tech-blue transition-colors resize-none"
                   />
                 </div>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium mb-2">Subject</label>
-                <Input 
-                  placeholder="Project Inquiry"
-                  className="border-border focus:border-tech-blue transition-colors"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium mb-2">Message</label>
-                <Textarea 
-                  placeholder="Tell me about your project..."
-                  className="min-h-32 border-border focus:border-tech-blue transition-colors resize-none"
-                />
-              </div>
-              
-              <Button 
-                onClick={handleSendMessage}
-                className="w-full bg-gradient-primary hover:shadow-glow transition-all duration-300 text-lg py-6"
-              >
-                <Send className="mr-2 h-5 w-5" />
-                Send Message
-              </Button>
+
+                {submitError && (
+                  <p className="text-sm text-red-500">{submitError}</p>
+                )}
+                {submitSuccess && (
+                  <p className="text-sm text-green-600">{submitSuccess}</p>
+                )}
+                
+                <Button 
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="w-full bg-gradient-primary hover:shadow-glow transition-all duration-300 text-lg py-6"
+                >
+                  <Send className="mr-2 h-5 w-5" />
+                  {isSubmitting ? "Sending..." : "Send Message"}
+                </Button>
+              </form>
             </CardContent>
           </Card>
         </div>
